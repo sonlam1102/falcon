@@ -1,0 +1,35 @@
+export CUDA_VISIBLE_DEVICES=0
+
+torchrun --nproc_per_node 1 \
+	-m FlagEmbedding.finetune.embedder.encoder_only.m3 \
+	--model_name_or_path BAAI/bge-m3 \
+    --cache_dir ./model/BGE-M3-Mocheg \
+    --train_data ./data/train_text_candidates_sum.jsonl \
+    --cache_path ./model/BGE-M3-Mocheg \
+    --train_group_size 5 \
+    --query_max_len 256 \
+    --passage_max_len 4096 \
+    --pad_to_multiple_of 8 \
+    --knowledge_distillation True \
+    --same_dataset_within_batch True \
+    --small_threshold 0 \
+    --drop_threshold 0 \
+    --output_dir ./model/BGE-M3-Mocheg \
+    --overwrite_output_dir \
+    --learning_rate 1e-5 \
+    --fp16 \
+    --num_train_epochs 8 \
+    --per_device_train_batch_size 8 \
+    --dataloader_drop_last True \
+    --warmup_ratio 0.1 \
+    --logging_steps 1000 \
+    --save_steps 1000000 \
+    --negatives_cross_device \
+    --temperature 0.02 \
+    --sentence_pooling_method cls \
+    --normalize_embeddings True \
+    --kd_loss_type m3_kd_loss \
+    --unified_finetuning True \
+    --use_self_distill True \
+    --fix_encoder False \
+    --self_distill_start_step 0 \

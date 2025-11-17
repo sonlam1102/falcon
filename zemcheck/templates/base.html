@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FALCON</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f6f8fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .input-container {
+            display: flex;
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 20px;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            outline: none;
+            transition: border 0.3s ease;
+        }
+
+        .input-box:focus {
+            border: 2px solid #007bff;
+        }
+
+        .submit-btn {
+            margin-left: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background-color: #007bff;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .results {
+            width: 100%;
+            max-width: 900px;
+            margin-top: 30px;
+            display: none; /* Hide initially, show after submission */
+        }
+
+        .label {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 12px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .label.green { background-color: #28a745; color: white; }
+        .label.red { background-color: #dc3545; color: white; }
+        .label.yellow { background-color: #ffc107; color: black; }
+
+        .images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .images img {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .paragraphs {
+            margin-bottom: 20px;
+        }
+
+        .paragraphs p {
+            background-color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+
+        .augmentation p {
+            background-color: #b6bec637;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+
+        .explanation {
+            background-color: rgba(165, 145, 223, 1);
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            -webkit-animation: spin 2s linear infinite; /* Safari */
+            animation: spin 2s linear infinite;
+            display: none;
+        }
+
+        /* Safari */
+        @-webkit-keyframes spin {
+        0% { -webkit-transform: rotate(0deg); }
+        100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>FALCON - Zero-shot Multimodal Fact-checking system</h1>
+
+    <div class="input-container">
+        <input type="text" class="input-box" placeholder="Enter your text here..." id="user-input">
+        <button class="submit-btn" id="submit_btnn">Submit</button>
+    </div>
+    <div class="loader" id="loader_control"></div>
+
+    <div class="results" id="results">
+        <span id="truth_label" class="label green" id="label">yes</span>
+        <div class="explanation">
+            <label>
+                Justifiaction:
+                <p id="explanation_label"></p>
+            </label>
+        </div>
+        <label>
+            Image evidences:
+            <div class="images" id="image_evideces"></div>
+        </label>
+
+        <label>
+            Text evidences:
+            <div class="paragraphs" id="text_evideces"></div>
+        </label>
+    </div>
+
+    <script>
+        const truth_label = document.getElementById('truth_label');
+        const explanation_label = document.getElementById('explanation_label');
+        const image_evidence = document.getElementById('image_evideces');
+        const text_evidence = document.getElementById('text_evideces');
+        const text_augmentation = document.getElementById('text_augmentation');
+
+        const result_panel = document.getElementById('results');
+        const loader_control = document.getElementById('loader_control');
+        
+        const submit_btn = document.getElementById('submit_btnn');
+
+        submit_btn.addEventListener('click', async () => {
+        // async function function showResults() {
+            var postData = {
+                claim: document.getElementById("user-input").value,
+            };
+            result_panel.style.display = 'none';
+            loader_control.style.display = 'block';
+            text_evidence.innerHTML = "";
+            image_evidence.innerHTML = "";
+            explanation_label.textContent = "";
+            
+            console.log(1)
+            submit_btn.disabled = true;
+
+            await fetch('/check_claim', {
+                method: 'POST', // Specify the HTTP method as POST
+                headers: {
+                    'Content-Type': 'application/json' // Indicate that the body is JSON
+                },
+                body: JSON.stringify(postData) // Convert the JavaScript object to a JSON string
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                submit_btn.disabled = false;
+                return response.json(); // Parse the JSON response
+            })
+            .then(responseData => {
+                console.log('Success:', responseData); // Handle the successful response
+                submit_btn.disabled = false;
+                result_panel.style.display = 'block';
+                loader_control.style.display = 'none';
+
+                if (responseData.label == 'True') {
+                    truth_label.className = 'label green';
+                    truth_label.textContent = "Support";
+                } 
+                else if (responseData.label == 'False') {
+                    truth_label.className = 'label red';
+                    truth_label.textContent = "Refuted";
+                }
+                else {
+                    truth_label.className = 'label yellow';
+                    truth_label.textContent = "Not enough information";
+                }
+
+                for (let i = 0; i < responseData['lst_evidence'].length; i++) {
+                    let new_p_element = document.createElement('p');
+                    new_p_element.textContent = responseData['lst_evidence'][i];
+                    text_evidence.appendChild(new_p_element);
+                }
+
+                for (let i = 0; i < responseData['lst_image_evidence'].length; i++) {
+                    let new_img_element = document.createElement('img');
+                    new_img_element.src = `data:image/png;base64,${responseData['lst_image_evidence'][i]}`;
+                    image_evidence.appendChild(new_img_element);
+                }
+
+                explanation_label.textContent = responseData['ruiling']
+
+            })
+            .catch(error => {
+                console.error('Error:', error); // Handle any errors during the request
+                loader_control.style.display = 'none';
+                result_panel.style.display = 'none';
+                submit_btn.disabled = false;
+            });            
+        });
+    </script>
+
+</body>
+</html>
