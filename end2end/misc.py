@@ -16,7 +16,8 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
         model_max_length=8000,
         padding_side="left",
         truncation_side="left",
-        trust_remote_code=True
+        trust_remote_code=True,
+        token=token
     )
     
     quantization_config = BitsAndBytesConfig(load_in_4bit=True)
@@ -29,6 +30,7 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
             attn_implementation=atten_type,
             quantization_config=quantization_config, 
             torch_dtype=torch.bfloat16,
+            token=token
         )
     else:
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -36,6 +38,7 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
         device_map=device,
         attn_implementation=atten_type,
         torch_dtype=torch.bfloat16,
+        token=token
     )
 
     return processor, model
@@ -68,7 +71,7 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
 
 
 def load_peft_model(peft_model_name, flash_attention=True, token="", quantize=False):
-    processor = AutoTokenizer.from_pretrained(peft_model_name)
+    processor = AutoTokenizer.from_pretrained(peft_model_name, token=token)
 
     atten_type = "flash_attention_2" if flash_attention else "eager" 
     quantization_config = BitsAndBytesConfig(load_in_4bit=True)
@@ -80,13 +83,15 @@ def load_peft_model(peft_model_name, flash_attention=True, token="", quantize=Fa
             device_map="auto",
             attn_implementation=atten_type,
             quantization_config=quantization_config, 
+            token=token
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(
             peft_model_name,
             torch_dtype="auto",
             device_map="auto",
-            attn_implementation=atten_type
+            attn_implementation=atten_type,
+            token=token
         )
 
     return processor, model
