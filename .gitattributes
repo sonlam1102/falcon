@@ -1,0 +1,4 @@
+model/encode_embedding/text_embedding_db_bge_id.npy filter=lfs diff=lfs merge=lfs -text
+model/encode_embedding/text_embedding_db_bge.npy filter=lfs diff=lfs merge=lfs -text
+model/encode_embedding/image_embedding_db_clip_id.npy filter=lfs diff=lfs merge=lfs -text
+model/encode_embedding/image_embedding_db_clip.npy filter=lfs diff=lfs merge=lfs -text
