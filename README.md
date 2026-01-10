@@ -17,5 +17,13 @@ Run the python commandlines:
 CUDA_VISIBLE_DEVICES=0 flask run --debug.    
 ```
 
+## Model weight:
++ Summary: https://huggingface.co/sonlam1102/falcon_summary_evidence
++ Augmentation: https://huggingface.co/sonlam1102/falcon_augmentation_vision    
++ Verification: https://huggingface.co/sonlam1102/falcon_verify_vision   
++ Verification (text-only): https://huggingface.co/sonlam1102/falcon_verify_text   
++ Explanation: https://huggingface.co/sonlam1102/falcon_explanation_vision   
++ Explanation (text-only): https://huggingface.co/sonlam1102/falcon_explanation_text   
+
 # FINE-TUNE THE LLMS
 TBA 
