@@ -14,6 +14,7 @@
 ## Run the system   
 Run the python commandlines: 
 ```
+cd falcon/ 
 CUDA_VISIBLE_DEVICES=0 flask run --debug.    
 ```
 
