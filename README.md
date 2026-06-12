@@ -1,5 +1,8 @@
 # RUN THE SYSTEM 
 
+## NEW: LIVE demonstration 
+Please refer to this link for live demo: https://651e-2001-df0-2ed-4170-2e4d-54ff-fe45-c99.ngrok-free.app 
+
 ## Data preparation.   
 - Download the database from Mocheg: https://github.com/PLUM-Lab/Mocheg. Two requires compnents are: *Corpus3.csv* -- containning the text evidence, and *images/* directory containing image evidence.  
 - Config the path to the evidence in the end2end/config.py file, params EVIDENCE_DB and IMAGE_DB. 
