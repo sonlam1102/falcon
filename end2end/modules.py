@@ -1,16 +1,29 @@
 from .misc import *
 import torch.nn.functional as F
-from qwen_vl_utils import process_vision_info
+# from qwen_vl_utils import process_vision_info
 from .config import *
+from openai import OpenAI
+import base64
 
+def encode_image(image_path):
+    """Encodes a local image into a base64 string."""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+    
 class Augmentation:
     def __init__(self, vllm=False):
-        self.processor, self.model = load_peft_model_vision(AUGMENTATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
+        # self.processor, self.model = load_peft_model_vision(AUGMENTATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
         # if vllm:
         #     self.processor, self.model = load_peft_model_vision_with_vllm(AUGMENTATION_MODEL, token=HF_TOKEN, quantize=QUANTIZE)
         # else:
         #     self.processor, self.model = load_peft_model_vision(AUGMENTATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
         
+        self.model = OpenAI(
+            base_url="http://0.0.0.0:8086/v1",
+            api_key="falcon_augmentation_vision"
+        )
+
         self._is_vllm = vllm   
         self.bge_model = load_bge_model()
         print("Successfully load Augmentation model and BGE model.")
@@ -23,7 +36,8 @@ class Augmentation:
             <EXPLANATION>: Explanation the aligment between the image hypothesis and the text.
             <FINAL ANSWER>: Give one paragraph describing the consistency of the image and text based on the explanation.
         """
-        
+        base64_image = encode_image(image)
+
         conversation = [
             {
                 "role": "system",
@@ -32,7 +46,8 @@ class Augmentation:
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": image, "resized_height": 720, "resized_width": 1280},
+                    # {"type": "image", "image": image, "resized_height": 400, "resized_width": 720},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "low"}},
                     {"type": "text", "text": text},
                 ],
             },
@@ -41,14 +56,14 @@ class Augmentation:
 
     def _inference_model(self, image_path, text):
         prompt = self._convert_to_conversation_infer(text, image_path)
-        
+
         # print(prompt)
-        text_inputs = [self.processor.apply_chat_template(prompt, tokenize=False)]
-        image_inputs = [process_vision_info(prompt)[0]]
+        # text_inputs = [self.processor.apply_chat_template(prompt, tokenize=False)]
+        # image_inputs = [process_vision_info(prompt)[0]]
         
-        model_inputs = self.processor(
-            text=text_inputs, images=image_inputs, return_tensors="pt", padding=True
-        ).to("cuda")
+        # model_inputs = self.processor(
+        #     text=text_inputs, images=image_inputs, return_tensors="pt", padding=True
+        # ).to("cuda")
         
         # if self._is_vllm:
         #     sampling_params = SamplingParams(do_sample=False, max_new_tokens=2048)
@@ -59,16 +74,25 @@ class Augmentation:
             
         #     return generated_text
             
-        output_ids = self.model.generate(**model_inputs, max_new_tokens=1024)
-        generated_ids = [
-            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, output_ids)
-        ]
+        # output_ids = self.model.generate(**model_inputs, max_new_tokens=1024)
+        # generated_ids = [
+        #     output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, output_ids)
+        # ]
         
-        output_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        # output_text = self.processor.batch_decode(
+        #     generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        # )
+        
+        # return output_text[0]
+
+        completion = self.model.chat.completions.create(
+            model="sonlam1102/falcon_augmentation_vision", # llama-server ignores this or uses your loaded model alias
+            messages=prompt,
+            temperature=0.1
         )
-        
-        return output_text[0]
+
+        return completion.choices[0].message.content
+
     
     def generate_augmentation(self, lst_image, lst_text):
         def make_image_description_evidence(image_explaination):
@@ -109,7 +133,7 @@ class Augmentation:
         # print(similarity.flatten())
         # print("******")
         
-        top_k_aligment = get_top_k(similarity.flatten(), 5)
+        top_k_aligment = get_top_k(similarity.flatten(), 3)
         # print(top_k_aligment)
         assert len(top_k_aligment) == len(lst_aligment)
         
@@ -150,7 +174,7 @@ class Retrival:
     
     def _build_flag_embedding(self):
         self._image_ids = np.load(RETRIVAL_MODEL_EMBEDDING + "/image_embedding_db_clip_id.npy")
-        self._image_emb = torch.from_numpy(np.load(RETRIVAL_MODEL_EMBEDDING + "/image_embedding_db_clip.npy")).to(self.bge_model.device)
+        self._image_emb = torch.from_numpy(np.load(RETRIVAL_MODEL_EMBEDDING + "/image_embedding_db_clip.npy")).to(self.clip_device)
         
         self._text_ids = np.load(RETRIVAL_MODEL_EMBEDDING + "/text_embedding_db_bge_id.npy")
         self._text_emb = torch.from_numpy(np.load(RETRIVAL_MODEL_EMBEDDING + "/text_embedding_db_bge.npy")).to(self.bge_model.device)
@@ -183,8 +207,8 @@ class Retrival:
         return image_sim
     
     def retrieve_evidence(self, query):
-        lst_doc = get_top_k(self.retrieve_text_similarity(query), top_k=5)
-        lst_image = get_top_k(self.retrieve_image_similarity_clip(query), top_k=5)
+        lst_doc = get_top_k(self.retrieve_text_similarity(query), top_k=2)
+        lst_image = get_top_k(self.retrieve_image_similarity_clip(query), top_k=2)
         
         lst_doc_ids = []
         lst_image_ids = []
@@ -232,12 +256,12 @@ class Retrival:
     
 class Verification:
     def __init__(self, visual=True, vllm=False):
-        if visual:
-            self.processor, self.model = load_peft_model_vision(VERIFICATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
-            print("Successfully load Verification model visual.")
-        else:
-            self.processor, self.model = load_peft_model(VERIFICATION_MODEL_TEXT, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
-            print("Successfully load Verification model text.")
+        # if visual:
+        #     self.processor, self.model = load_peft_model_vision(VERIFICATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
+        #     print("Successfully load Verification model visual.")
+        # else:
+        #     self.processor, self.model = load_peft_model(VERIFICATION_MODEL_TEXT, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
+        #     print("Successfully load Verification model text.")
             
         # if visual:
         #     if vllm:
@@ -252,6 +276,10 @@ class Verification:
         #         self.processor, self.model = load_peft_model(VERIFICATION_MODEL_TEXT, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
         #     print("Successfully load Verification model text.")
         
+        self.model = OpenAI(
+            base_url="http://0.0.0.0:8087/v1",
+            api_key="falcon_verify_vision"
+        )
         self._is_vllm = vllm
         self._is_visual = visual
         self._aligment = None
@@ -269,12 +297,16 @@ class Verification:
         multimodal_content = []
         multimodal_aligmenent = []
         for s in lst_aligment:
-            multimodal_content.append({
-                "type": "image",
-                "image": s['image'],
-                "resized_height": 480, 
-                "resized_width": 720
-            }) 
+            
+            # multimodal_content.append({
+            #     "type": "image",
+            #     "image": s['image'],
+            #     "resized_height": 480, 
+            #     "resized_width": 720
+            # }) 
+
+            base64_image = encode_image(s['image'])
+            multimodal_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "low"}})
             
             multimodal_content.append({
                 "type": "text",
@@ -362,17 +394,17 @@ class Verification:
         prompt = self._convert_to_conversation_infer(claim, lst_aligment)
         
         # print(prompt)
-        text_inputs = [self.processor.apply_chat_template(prompt, tokenize=False)]
-        image_inputs = [process_vision_info(prompt)[0]]
+        # text_inputs = [self.processor.apply_chat_template(prompt, tokenize=False)]
+        # image_inputs = [process_vision_info(prompt)[0]]
         
-        if self._is_visual:
-            model_inputs = self.processor(
-                text=text_inputs, images=image_inputs, return_tensors="pt", padding=True
-            ).to("cuda")
-        else:
-            model_inputs = self.processor(
-                text=text_inputs, return_tensors="pt", padding=True
-            ).to("cuda")
+        # if self._is_visual:
+        #     model_inputs = self.processor(
+        #         text=text_inputs, images=image_inputs, return_tensors="pt", padding=True
+        #     ).to("cuda")
+        # else:
+        #     model_inputs = self.processor(
+        #         text=text_inputs, return_tensors="pt", padding=True
+        #     ).to("cuda")
         
         # if self._is_vllm:
         #     sampling_params = SamplingParams(do_sample=False, max_new_tokens=2048)
@@ -383,16 +415,24 @@ class Verification:
             
         #     return generated_text
         
-        output_ids = self.model.generate(**model_inputs, max_new_tokens=100)
-        generated_ids = [
-            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, output_ids)
-        ]
+        # output_ids = self.model.generate(**model_inputs, max_new_tokens=100)
+        # generated_ids = [
+        #     output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, output_ids)
+        # ]
         
-        output_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        # output_text = self.processor.batch_decode(
+        #     generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        # )
+        
+        # return output_text[0]
+
+        completion = self.model.chat.completions.create(
+            model="sonlam1102/falcon_verify_vision", # llama-server ignores this or uses your loaded model alias
+            messages=prompt,
+            temperature=0.1
         )
-        
-        return output_text[0]
+
+        return completion.choices[0].message.content
     
     
     def make_verification(self, claim, lst_aligment):
@@ -407,12 +447,12 @@ class Verification:
     
 class Explanation:
     def __init__(self, visual=True, vllm=False):
-        if visual:
-            self.processor, self.model = load_peft_model_vision(EXPLANATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
-            print("Successfully load Explanation model visual.")
-        else:
-            self.processor, self.model = load_peft_model(EXPLANATION_MODEL_TEXT, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
-            print("Successfully load Explanaiton model text.")
+        # if visual:
+        #     self.processor, self.model = load_peft_model_vision(EXPLANATION_MODEL, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
+        #     print("Successfully load Explanation model visual.")
+        # else:
+        #     self.processor, self.model = load_peft_model(EXPLANATION_MODEL_TEXT, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
+        #     print("Successfully load Explanaiton model text.")
         
         # if visual:
         #     if vllm:
@@ -426,6 +466,11 @@ class Explanation:
         #     else:
         #         self.processor, self.model = load_peft_model(EXPLANATION_MODEL_TEXT, flash_attention=FLASH_ATTENTION, token=HF_TOKEN, quantize=QUANTIZE)
         #     print("Successfully load Verification model text.")
+        
+        self.model = OpenAI(
+            base_url="http://0.0.0.0:8089/v1",
+            api_key="falcon_explanation_vision"
+        )
         
         self._is_vllm = vllm
         self._is_visual = visual
@@ -445,12 +490,15 @@ class Explanation:
         multimodal_content = []
         multimodal_aligment = []
         for s in lst_aligment:
-            multimodal_content.append({
-                "type": "image",
-                "image": s['image'],
-                "resized_height": 480, 
-                "resized_width": 720
-            }) 
+            # multimodal_content.append({
+            #     "type": "image",
+            #     "image": s['image'],
+            #     "resized_height": 480, 
+            #     "resized_width": 720
+            # }) 
+
+            base64_image = encode_image(s['image'])
+            multimodal_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "low"}})
             
             multimodal_content.append({
                 "type": "text",
@@ -536,18 +584,18 @@ class Explanation:
     def _inference_model(self, claim, predict_label, lst_aligment):
         prompt = self._convert_to_conversation_infer(claim, predict_label, lst_aligment)
         
-        # print(prompt)
-        text_inputs = [self.processor.apply_chat_template(prompt, tokenize=False)]
-        image_inputs = [process_vision_info(prompt)[0]]
+        # # print(prompt)
+        # text_inputs = [self.processor.apply_chat_template(prompt, tokenize=False)]
+        # image_inputs = [process_vision_info(prompt)[0]]
         
-        if self._is_visual:
-            model_inputs = self.processor(
-                text=text_inputs, images=image_inputs, return_tensors="pt", padding=True
-            ).to("cuda")
-        else:
-            model_inputs = self.processor(
-                text=text_inputs, return_tensors="pt", padding=True
-            ).to("cuda")
+        # if self._is_visual:
+        #     model_inputs = self.processor(
+        #         text=text_inputs, images=image_inputs, return_tensors="pt", padding=True
+        #     ).to("cuda")
+        # else:
+        #     model_inputs = self.processor(
+        #         text=text_inputs, return_tensors="pt", padding=True
+        #     ).to("cuda")
         
         # if self._is_vllm:
         #     sampling_params = SamplingParams(do_sample=False, max_new_tokens=2048)
@@ -558,16 +606,24 @@ class Explanation:
             
         #     return generated_text
         
-        output_ids = self.model.generate(**model_inputs, max_new_tokens=512)
-        generated_ids = [
-            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, output_ids)
-        ]
+        # output_ids = self.model.generate(**model_inputs, max_new_tokens=512)
+        # generated_ids = [
+        #     output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, output_ids)
+        # ]
         
-        output_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        # output_text = self.processor.batch_decode(
+        #     generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        # )
+        
+        # return output_text[0]
+
+        completion = self.model.chat.completions.create(
+            model="sonlam1102/falcon_explanation_vision",
+            messages=prompt,
+            temperature=0.1
         )
-        
-        return output_text[0]
+
+        return completion.choices[0].message.content
     
     def make_explanation(self, claim, predict_label, lst_aligment):
         response = self._inference_model(claim, predict_label, lst_aligment)

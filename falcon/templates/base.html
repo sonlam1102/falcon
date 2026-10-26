@@ -5,63 +5,182 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FALCON</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
             background-color: #f6f8fa;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            color: #263746;
+        }
+
+        .page-shell {
+            width: 100%;
+            margin: 0 auto;
+            padding: 28px clamp(16px, 3vw, 48px) 48px;
+        }
+
+        .hero-panel {
+            width: 100%;
+            margin-bottom: 28px;
+            padding: 32px;
+            background: linear-gradient(135deg, #eaf4f7, #f1f6fb);
+            border: 1px solid #d7e6ec;
+            border-radius: 16px;
+            box-shadow: 0 4px 14px rgba(31, 65, 82, 0.08);
         }
 
         h1 {
-            margin-bottom: 20px;
-            color: #333;
+            margin: 0 0 10px;
+            color: #24475a;
+            text-align: center;
+            line-height: 1.25;
+            font-size: clamp(1.75rem, 4vw, 2.5rem);
         }
 
         .input-container {
             display: flex;
             width: 100%;
-            max-width: 700px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin: 0;
         }
 
         .input-box {
             flex: 1;
-            padding: 10px;
+            min-width: 0;
+            padding: 14px 16px;
             font-size: 16px;
-            border: 2px solid #ccc;
-            border-radius: 8px;
+            color: #263746;
+            background-color: #fff;
+            border: 1px solid #c7d8df;
+            border-radius: 10px;
             outline: none;
-            transition: border 0.3s ease;
+            box-shadow: 0 2px 5px rgba(31, 65, 82, 0.05);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .input-box:focus {
-            border: 2px solid #007bff;
+            border-color: #39849b;
+            box-shadow: 0 0 0 3px rgba(57, 132, 155, 0.16);
         }
 
         .submit-btn {
-            margin-left: 10px;
-            padding: 10px 20px;
+            padding: 10px 24px;
             border: none;
-            border-radius: 8px;
-            background-color: #007bff;
+            border-radius: 10px;
+            background-color: #39849b;
             color: #fff;
             font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            white-space: nowrap;
         }
 
         .submit-btn:hover {
-            background-color: #0056b3;
+            background-color: #2e6d80;
+        }
+
+        .submit-btn:focus-visible {
+            outline: 3px solid rgba(57, 132, 155, 0.35);
+            outline-offset: 2px;
+        }
+
+        .submit-btn:disabled {
+            cursor: wait;
+            opacity: 0.7;
         }
 
         .results {
             width: 100%;
-            max-width: 900px;
-            margin-top: 30px;
+            margin-top: 28px;
             display: none; /* Hide initially, show after submission */
+        }
+
+        .evidence-section {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #d8e0e8;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(31, 45, 61, 0.08);
+        }
+
+        .image-evidence-section {
+            background-color: #edf5ff;
+            border-left: 4px solid #3478a8;
+        }
+
+        .text-evidence-section {
+            background-color: #eff8f3;
+            border-left: 4px solid #39845b;
+        }
+
+        .rationale-section {
+            background-color: #f5f1fb;
+            border-left: 4px solid #7753a6;
+        }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff8e8;
+            border: 1px solid #ead9a8;
+            border-left: 4px solid #c18b22;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(31, 45, 61, 0.08);
+        }
+
+        .evidence-section h2,
+        .explanation h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 16px;
+            color: #263746;
+            font-size: 1.15rem;
+        }
+
+        .rationale-details summary {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #263746;
+            font-size: 1.15rem;
+            font-weight: bold;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .rationale-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .rationale-details summary::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid #7753a6;
+            border-bottom: 2px solid #7753a6;
+            transform: rotate(-45deg);
+            transition: transform 0.2s ease;
+        }
+
+        .rationale-details[open] summary {
+            margin-bottom: 16px;
+        }
+
+        .rationale-details[open] summary::before {
+            transform: rotate(45deg);
+        }
+
+        .explanation p {
+            margin: 0;
+            padding: 12px 16px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            overflow-wrap: anywhere;
         }
 
         .label {
@@ -108,13 +227,6 @@
             margin-bottom: 10px;
         }
 
-        .explanation {
-            background-color: rgba(165, 145, 223, 1);
-            padding: 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
         .loader {
             border: 16px solid #f3f3f3;
             border-radius: 50%;
@@ -124,6 +236,7 @@
             -webkit-animation: spin 2s linear infinite; /* Safari */
             animation: spin 2s linear infinite;
             display: none;
+            margin: 24px auto;
         }
 
         /* Safari */
@@ -136,43 +249,124 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
         }
+
+        .rationale-item {
+            display: grid;
+            grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .rationale-item img {
+            display: block;
+            width: 100%;
+            max-height: 240px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .rationale-item-text {
+            min-width: 0;
+        }
+
+        .rationale-item-text p {
+            overflow-wrap: anywhere;
+        }
+
+        /* Stack the content on narrow screens. */
+        @media (max-width: 600px) {
+            .page-shell {
+                padding: 20px 16px 32px;
+            }
+
+            h1 {
+                font-size: 1.65rem;
+            }
+
+            .hero-panel {
+                padding: 24px 18px;
+            }
+
+            .input-container {
+                flex-direction: column;
+            }
+
+            .submit-btn {
+                min-height: 46px;
+            }
+
+            .evidence-section,
+            .explanation {
+                padding: 16px;
+            }
+
+            .images {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 10px;
+            }
+
+            .rationale-item {
+                grid-template-columns: 1fr;
+            }
+
+            .rationale-item img {
+                max-width: 220px;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <h1>FALCON - Zero-shot Multimodal Fact-checking system</h1>
+    <main class="page-shell">
+    <header class="hero-panel">
+        <h1>FALCON: Evidence-Grounded Multimodal Claim Verification</h1>
 
-    <div class="input-container">
-        <input type="text" class="input-box" placeholder="Enter your text here..." id="user-input">
-        <button class="submit-btn" id="submit_btnn">Submit</button>
-    </div>
+        <div class="input-container">
+            <input type="text" class="input-box" placeholder="Enter your text here..." id="user-input" aria-label="Claim to verify">
+            <button class="submit-btn" id="submit_btnn">Check claim</button>
+        </div>
+    </header>
     <div class="loader" id="loader_control"></div>
 
     <div class="results" id="results">
         <span id="truth_label" class="label green" id="label">yes</span>
         <div class="explanation">
-            <label>
-                Justifiaction:
-                <p id="explanation_label"></p>
-            </label>
+            <h2>Justification</h2>
+            <p id="explanation_label"></p>
         </div>
-        <label>
-            Image evidences:
+        <section class="evidence-section image-evidence-section" aria-labelledby="image-evidence-heading">
+            <h2 id="image-evidence-heading">
+                Image evidences
+            </h2>
             <div class="images" id="image_evideces"></div>
-        </label>
+        </section>
 
-        <label>
-            Text evidences:
+        <section class="evidence-section text-evidence-section" aria-labelledby="text-evidence-heading">
+            <h2 id="text-evidence-heading">
+                Text evidences
+            </h2>
             <div class="paragraphs" id="text_evideces"></div>
-        </label>
+        </section>
+
+        <section class="evidence-section rationale-section" aria-labelledby="rationale-heading">
+            <details class="rationale-details">
+                <summary id="rationale-heading">Rationale</summary>
+                <div class="paragraphs" id="rationale_evidence"></div>
+            </details>
+        </section>
+
     </div>
+    </main>
 
     <script>
         const truth_label = document.getElementById('truth_label');
         const explanation_label = document.getElementById('explanation_label');
         const image_evidence = document.getElementById('image_evideces');
         const text_evidence = document.getElementById('text_evideces');
-        const text_augmentation = document.getElementById('text_augmentation');
+        const rationale_evidence = document.getElementById('rationale_evidence');
+        
 
         const result_panel = document.getElementById('results');
         const loader_control = document.getElementById('loader_control');
@@ -189,6 +383,7 @@
             text_evidence.innerHTML = "";
             image_evidence.innerHTML = "";
             explanation_label.textContent = "";
+            rationale_evidence.innerHTML = "";
             
             console.log(1)
             submit_btn.disabled = true;
@@ -239,6 +434,28 @@
                 }
 
                 explanation_label.textContent = responseData['ruiling']
+
+                for (let i = 0; i < responseData['rationale'].length; i++) {
+                    const item = responseData['rationale'][i];
+                    const rationaleItem = document.createElement('div');
+                    const image = document.createElement('img');
+                    const textContainer = document.createElement('div');
+
+                    rationaleItem.className = 'rationale-item';
+                    textContainer.className = 'rationale-item-text';
+
+                    image.src = `data:image/png;base64,${item['image_evidence']}`;
+
+                    for (const text of [item['text_evidence'], item['explain'], item['conclusion']]) {
+                        const paragraph = document.createElement('p');
+                        paragraph.textContent = text;
+                        textContainer.appendChild(paragraph);
+                    }
+
+                    rationaleItem.appendChild(image);
+                    rationaleItem.appendChild(textContainer);
+                    rationale_evidence.appendChild(rationaleItem);
+                }
 
             })
             .catch(error => {

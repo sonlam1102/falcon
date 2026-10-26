@@ -15,7 +15,7 @@ if __name__ == "__main__":
     assert claim == sample_claim
     # print(lst_image_evidence)
     lst_augmentation = augmentation.run(claim, lst_image_evidence, lst_text_evidence)[-1]
-    # print(lst_text_evidence)
+    print(lst_augmentation)
     
     print("------")
     print(lst_augmentation)

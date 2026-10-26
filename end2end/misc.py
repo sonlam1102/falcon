@@ -21,6 +21,15 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
     )
     
     quantization_config = BitsAndBytesConfig(load_in_4bit=True)
+    # quantization_config = BitsAndBytesConfig(
+    #     llm_int8_threshold=6.0,
+    #     llm_int8_has_fp16_weight=False,
+    #     bnb_4bit_compute_dtype=torch.bfloat16,
+    #     bnb_4bit_use_double_quant=True,
+    #     bnb_4bit_quant_type="nf4",
+    #     load_in_4bit=True,
+    #     load_in_8bit=False,
+    # )
 
     atten_type = "flash_attention_2" if flash_attention else "eager" 
     if quantize:
@@ -30,7 +39,8 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
             attn_implementation=atten_type,
             quantization_config=quantization_config, 
             torch_dtype=torch.bfloat16,
-            token=token
+            token=token,
+            tie_word_embeddings=True, 
         )
     else:
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -38,7 +48,8 @@ def load_peft_model_vision(peft_model_name, device="auto", flash_attention=True,
         device_map=device,
         attn_implementation=atten_type,
         torch_dtype=torch.bfloat16,
-        token=token
+        token=token,
+        tie_word_embeddings=True,  # <-- add this
     )
 
     return processor, model
@@ -110,18 +121,20 @@ def get_top_k(predict_output, top_k):
 
 
 def load_summary_model():
-    model = BartForConditionalGeneration.from_pretrained(SUMMARY_MODEL, use_auth_token=HF_TOKEN)
-    tokenizer = BartTokenizer.from_pretrained(SUMMARY_MODEL, use_auth_token=HF_TOKEN)
+    model = BartForConditionalGeneration.from_pretrained(SUMMARY_MODEL)
+    tokenizer = BartTokenizer.from_pretrained(SUMMARY_MODEL)
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
+    # device = 'cpu'
     return tokenizer, model.to(device)
 
 def load_bge_model():
-    model = BGEM3FlagModel(BGE_MODEL, use_fp16=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    # model = BGEM3FlagModel(BGE_MODEL, use_fp16=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    model = BGEM3FlagModel(BGE_MODEL, use_fp16=False, device='cpu')
     return model
 
 def load_clip_model():
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = 'cpu'
     visualize_clip_model, _ = clip.load(CLIP_MODEL, device=device)
     return visualize_clip_model, device
 

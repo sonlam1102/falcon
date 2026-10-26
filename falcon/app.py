@@ -30,7 +30,8 @@ def dump_response():
     })
 
     return response_data
-    
+
+
 app = Flask(__name__)
 load_fact_check_models()
 
@@ -57,6 +58,21 @@ def check_claim():
         predict_explanation, _ = explanation.run(claim, predict_label, lst_augmentation)
         print("Done explanation")
 
+        rationale = []
+        for aug in lst_augmentation:
+            with open(aug["image"], "rb") as image_file:
+                img_b64 = base64.b64encode(image_file.read())
+            image_file.close()
+
+            rationale.append({
+                "image_evidence": img_b64.decode('utf-8'),
+                "text_evidence": aug["text"],
+                "explain": aug["alignment"][0],
+                "conclusion": aug["alignment"][1],
+            })
+        
+        # print(rationale)
+
         new_base54img = []
         for li in lst_image_evidence:
             print(li)
@@ -71,9 +87,9 @@ def check_claim():
             "lst_image_evidence": new_base54img,
             # "lst_augmentation": new_lst_augmentation,
             "label": predict_label,
-            "ruiling": predict_explanation
+            "ruiling": predict_explanation,
+            "rationale": rationale
         })
-        
         # response_data = dump_response()
         return make_response(response_data, 200)
     else:
@@ -83,4 +99,5 @@ def check_claim():
 if __name__ == '__main__':
     # run() method of Flask class runs the application 
     # on the local development server.
+    load_fact_check_models()
     app.run()
