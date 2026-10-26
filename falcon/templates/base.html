@@ -228,26 +228,93 @@
         }
 
         .loader {
-            border: 16px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 16px solid #3498db;
+            position: relative;
             width: 120px;
             height: 120px;
-            -webkit-animation: spin 2s linear infinite; /* Safari */
-            animation: spin 2s linear infinite;
             display: none;
-            margin: 24px auto;
+            margin: 24px auto 8px;
         }
 
-        /* Safari */
+        .loader::before {
+            position: absolute;
+            inset: 0;
+            border: 16px solid #f3f3f3;
+            border-top-color: #3498db;
+            border-radius: 50%;
+            content: "";
+            -webkit-animation: spin 2s linear infinite;
+            animation: spin 2s linear infinite;
+        }
+
         @-webkit-keyframes spin {
-        0% { -webkit-transform: rotate(0deg); }
-        100% { -webkit-transform: rotate(360deg); }
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
         }
 
         @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loader-time {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #263746;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .loader-message {
+            display: none;
+            margin: 0 auto 8px;
+            color: #58717d;
+            text-align: center;
+        }
+
+        .loading-steps {
+            display: none;
+            width: min(100%, 360px);
+            margin: 0 auto 24px;
+            padding: 0;
+            color: #7b8c95;
+            font-size: 0.95rem;
+            list-style: none;
+        }
+
+        .loading-steps li {
+            position: relative;
+            margin: 8px 0;
+            padding-left: 24px;
+            line-height: 1.4;
+        }
+
+        .loading-steps li::before {
+            position: absolute;
+            left: 2px;
+            content: "○";
+            color: #9aabb3;
+        }
+
+        .loading-steps li.active {
+            color: #2e6d80;
+            font-weight: bold;
+        }
+
+        .loading-steps li.active::before {
+            content: "●";
+            color: #39849b;
+        }
+
+        .loading-steps li.complete {
+            color: #39845b;
+        }
+
+        .loading-steps li.complete::before {
+            content: "✓";
+            color: #39845b;
         }
 
         .rationale-item {
@@ -323,12 +390,22 @@
     <header class="hero-panel">
         <h1>FALCON: Evidence-Grounded Multimodal Claim Verification</h1>
 
-        <div class="input-container">
-            <input type="text" class="input-box" placeholder="Enter your text here..." id="user-input" aria-label="Claim to verify">
-            <button class="submit-btn" id="submit_btnn">Check claim</button>
-        </div>
+        <form class="input-container" id="claim_form">
+            <input type="text" class="input-box" placeholder="Enter your text here..." id="user-input" aria-label="Claim to verify" required>
+            <button class="submit-btn" id="submit_btnn" type="submit">Check claim</button>
+        </form>
     </header>
-    <div class="loader" id="loader_control"></div>
+    <div class="loader" id="loader_control" role="status" aria-live="polite">
+        <span class="loader-time" id="loader_time">0 sec</span>
+    </div>
+    <p class="loader-message" id="loader_message">Please wait a minute.</p>
+    <ol class="loading-steps" id="loading_steps" aria-label="Claim verification steps">
+        <li>Retrieving the evidence</li>
+        <li>Verifying the claim</li>
+        <li>Giving the truthfulness label</li>
+        <li>Generating the justification</li>
+        <li>Showing the result</li>
+    </ol>
 
     <div class="results" id="results">
         <span id="truth_label" class="label green" id="label">yes</span>
@@ -370,16 +447,69 @@
 
         const result_panel = document.getElementById('results');
         const loader_control = document.getElementById('loader_control');
+        const loader_time = document.getElementById('loader_time');
+        const loader_message = document.getElementById('loader_message');
+        const loading_steps = document.getElementById('loading_steps');
+        const loading_step_items = loading_steps.querySelectorAll('li');
         
+        const claim_form = document.getElementById('claim_form');
+        const claim_input = document.getElementById('user-input');
         const submit_btn = document.getElementById('submit_btnn');
+        let loadingTimer;
+        let loadingStepTimer;
 
-        submit_btn.addEventListener('click', async () => {
+        function updateLoadingStep(activeIndex) {
+            loading_step_items.forEach((step, index) => {
+                step.classList.toggle('complete', index < activeIndex);
+                step.classList.toggle('active', index === activeIndex);
+                if (index === activeIndex) {
+                    step.setAttribute('aria-current', 'step');
+                } else {
+                    step.removeAttribute('aria-current');
+                }
+            });
+        }
+
+        function startLoadingTimer() {
+            const startedAt = Date.now();
+            loader_time.textContent = '0 sec';
+            clearInterval(loadingTimer);
+            clearInterval(loadingStepTimer);
+            let activeStep = 0;
+            updateLoadingStep(activeStep);
+            loading_steps.style.display = 'block';
+            loadingTimer = setInterval(() => {
+                const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+                loader_time.textContent = `${elapsedSeconds} sec`;
+            }, 250);
+            loadingStepTimer = setInterval(() => {
+                if (activeStep < loading_step_items.length - 1) {
+                    activeStep += 1;
+                    updateLoadingStep(activeStep);
+                }
+            }, 5000);
+        }
+
+        function stopLoadingTimer() {
+            clearInterval(loadingTimer);
+            clearInterval(loadingStepTimer);
+            loading_steps.style.display = 'none';
+        }
+
+        claim_form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!claim_input.value.trim()) {
+                claim_input.focus();
+                return;
+            }
         // async function function showResults() {
             var postData = {
-                claim: document.getElementById("user-input").value,
+                claim: claim_input.value,
             };
             result_panel.style.display = 'none';
             loader_control.style.display = 'block';
+            loader_message.style.display = 'block';
+            startLoadingTimer();
             text_evidence.innerHTML = "";
             image_evidence.innerHTML = "";
             explanation_label.textContent = "";
@@ -407,6 +537,8 @@
                 submit_btn.disabled = false;
                 result_panel.style.display = 'block';
                 loader_control.style.display = 'none';
+                loader_message.style.display = 'none';
+                stopLoadingTimer();
 
                 if (responseData.label == 'True') {
                     truth_label.className = 'label green';
@@ -461,6 +593,8 @@
             .catch(error => {
                 console.error('Error:', error); // Handle any errors during the request
                 loader_control.style.display = 'none';
+                loader_message.style.display = 'none';
+                stopLoadingTimer();
                 result_panel.style.display = 'none';
                 submit_btn.disabled = false;
             });            
