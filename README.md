@@ -32,5 +32,8 @@ CUDA_VISIBLE_DEVICES=0 flask run --debug.
 + Explanation: https://huggingface.co/sonlam1102/falcon_explanation_vision   
 + Explanation (text-only): https://huggingface.co/sonlam1102/falcon_explanation_text   
 
-# FINE-TUNE THE LLMS
+## FINE-TUNE THE LLMS
 TBA 
+
+# Publication 
+tba 
